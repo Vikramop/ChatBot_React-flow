@@ -1,30 +1,43 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import ReactFlow, {
   Background,
   Controls,
   addEdge,
   useNodesState,
   useEdgesState,
+  useNodes,
+  useEdges,
   ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import Toolbar from './Toolbar';
+import CustomNode from './CustomNode';
+
+const nodeTypes = {
+  custom: CustomNode,
+};
 
 const initialNodes = [
   {
     id: '1',
-    type: 'default',
-    position: { x: 250, y: 300 },
-    data: { label: 'Message' },
+    type: 'custom',
+    position: { x: 200, y: 300 },
+    data: { msg: 'test message 1' },
+  },
+  {
+    id: '2',
+    type: 'custom',
+    position: { x: 550, y: 200 },
+    data: { msg: 'test message 2' },
   },
 ];
 
 let id = 0;
 const getId = () => `dndnode_${id++}`;
 
-const Canvas = () => {
+const Canvas = ({ onNodeClick }) => {
   //   const reactFlowWrapper = useRef(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -74,6 +87,7 @@ const Canvas = () => {
           <ReactFlow
             nodes={nodes}
             edges={edges}
+            nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
