@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import ReactFlow, {
   Background,
   Controls,
   addEdge,
   useNodesState,
   useEdgesState,
-  useNodes,
-  useEdges,
   ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -37,11 +35,43 @@ const initialNodes = [
 let id = 0;
 const getId = () => `dndnode_${id++}`;
 
-const Canvas = ({ onNodeClick }) => {
-  //   const reactFlowWrapper = useRef(null);
+const Canvas = () => {
+  const reactFlowWrapper = useRef(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
+
+  //updating the name of nodes
+  const [editValue, setEditValue] = useState(nodes.data);
+  const [id, setId] = useState();
+
+  // function to edit
+  const onNodeClick = (e, val) => {
+    setEditValue(val.data.msg);
+    setId(val.id);
+
+    console.log('clicked');
+  };
+
+  //handle change function
+  const handleChange = (e) => {
+    e.preventDefault();
+    setEditValue(e.target.value);
+  };
+
+  const handleEdit = () => {
+    const res = nodes.map((item) => {
+      if (item.id === id) {
+        item.data = {
+          ...item.data,
+          msg: editValue,
+        };
+      }
+      return item;
+    });
+    setNodes(res);
+    setEditValue('');
+  };
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge(params, eds)),
@@ -72,7 +102,7 @@ const Canvas = ({ onNodeClick }) => {
         id: getId(),
         type,
         position,
-        data: { label: `${type} node` },
+        data: { msg: `${type} node` },
       };
 
       setNodes((nds) => nds.concat(newNode));
@@ -82,12 +112,23 @@ const Canvas = ({ onNodeClick }) => {
 
   return (
     <div className="flex">
+      <div className="update">
+        <label>label:</label> <br />
+        <input
+          type="text"
+          className="border-2 border-black"
+          value={editValue}
+          onChange={handleChange}
+        />
+        <button onClick={handleEdit}> UPdate</button>
+      </div>
       <ReactFlowProvider>
-        <div className="w-[75%] h-[90vh] bg-slate-100">
+        <div className="w-[75%] h-[90vh] bg-slate-100" ref={reactFlowWrapper}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
+            onNodeClick={(e, val) => onNodeClick(e, val)}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
