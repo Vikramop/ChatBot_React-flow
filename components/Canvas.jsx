@@ -41,36 +41,34 @@ const Canvas = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
 
-  //updating the name of nodes
-  const [editValue, setEditValue] = useState(nodes.data);
-  const [id, setId] = useState();
+  const [editValue, setEditValue] = useState('');
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [showUpdateSection, setShowUpdateSection] = useState(false);
 
-  // function to edit
-  const onNodeClick = (e, val) => {
-    setEditValue(val.data.msg);
-    setId(val.id);
-
-    console.log('clicked');
+  const onNodeClick = (e, node) => {
+    setEditValue(node.data.msg);
+    setSelectedNodeId(node.id);
+    setShowUpdateSection(true);
   };
 
-  //handle change function
   const handleChange = (e) => {
-    e.preventDefault();
     setEditValue(e.target.value);
   };
 
   const handleEdit = () => {
-    const res = nodes.map((item) => {
-      if (item.id === id) {
-        item.data = {
-          ...item.data,
+    const updatedNodes = nodes.map((node) => {
+      if (node.id === selectedNodeId) {
+        node.data = {
+          ...node.data,
           msg: editValue,
         };
       }
-      return item;
+      return node;
     });
-    setNodes(res);
+    setNodes(updatedNodes);
     setEditValue('');
+    setSelectedNodeId(null); // Deselect node after editing
+    setShowUpdateSection(false);
   };
 
   const onConnect = useCallback(
@@ -89,7 +87,6 @@ const Canvas = () => {
 
       const type = event.dataTransfer.getData('application/reactflow');
 
-      // check if the dropped element is valid
       if (typeof type === 'undefined' || !type) {
         return;
       }
@@ -112,37 +109,31 @@ const Canvas = () => {
 
   return (
     <div className="flex">
-      <div className="update">
-        <label>label:</label> <br />
-        <input
-          type="text"
-          className="border-2 border-black"
-          value={editValue}
-          onChange={handleChange}
-        />
-        <button onClick={handleEdit}> UPdate</button>
-      </div>
       <ReactFlowProvider>
         <div className="w-[75%] h-[90vh] bg-slate-100" ref={reactFlowWrapper}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
-            onNodeClick={(e, val) => onNodeClick(e, val)}
+            onNodeClick={onNodeClick}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onInit={setReactFlowInstance}
             onDrop={onDrop}
             onDragOver={onDragOver}
-            // fitView
           >
             <Background />
             <Controls />
           </ReactFlow>
         </div>
-
-        <Toolbar />
+        <Toolbar
+          editValue={editValue}
+          handleChange={handleChange}
+          handleEdit={handleEdit}
+          selectedNodeId={selectedNodeId}
+          setShowUpdateSection={setShowUpdateSection}
+        />
       </ReactFlowProvider>
     </div>
   );
