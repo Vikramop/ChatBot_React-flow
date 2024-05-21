@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -12,6 +12,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import Toolbar from './Toolbar';
 import CustomNode from './CustomNode';
+import Header from './Header';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -32,43 +33,46 @@ const initialNodes = [
   },
 ];
 
-let id = 0;
-const getId = () => `dndnode_${id++}`;
+const getId = () => `dndnode_${Date.now()}`;
 
 const Canvas = () => {
   const reactFlowWrapper = useRef(null);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
-
   const [editValue, setEditValue] = useState('');
   const [selectedNodeId, setSelectedNodeId] = useState(null);
-  const [showUpdateSection, setShowUpdateSection] = useState(false);
+
+  useEffect(() => {
+    const savedNodes = localStorage.getItem('nodes');
+    const savedEdges = localStorage.getItem('edges');
+
+    if (savedNodes && savedEdges) {
+      setNodes(JSON.parse(savedNodes));
+      setEdges(JSON.parse(savedEdges));
+    }
+  }, []);
 
   const onNodeClick = (e, node) => {
     setEditValue(node.data.msg);
     setSelectedNodeId(node.id);
-    setShowUpdateSection(true);
   };
 
   const handleChange = (e) => {
+    e.preventDefault();
     setEditValue(e.target.value);
   };
 
   const handleEdit = () => {
-    const updatedNodes = nodes.map((node) => {
-      if (node.id === selectedNodeId) {
-        node.data = {
-          ...node.data,
-          msg: editValue,
-        };
-      }
-      return node;
-    });
-    setNodes(updatedNodes);
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === selectedNodeId) {
+          node.data = { ...node.data, msg: editValue };
+        }
+        return node;
+      })
+    );
     setEditValue('');
-    setSelectedNodeId(null); // Deselect node after editing
-    setShowUpdateSection(false);
   };
 
   const onConnect = useCallback(
@@ -86,12 +90,9 @@ const Canvas = () => {
       event.preventDefault();
 
       const type = event.dataTransfer.getData('application/reactflow');
+      if (!type) return;
 
-      if (typeof type === 'undefined' || !type) {
-        return;
-      }
-
-      const position = reactFlowInstance.screenToFlowPosition({
+      const position = reactFlowInstance.project({
         x: event.clientX,
         y: event.clientY,
       });
@@ -107,34 +108,59 @@ const Canvas = () => {
     [reactFlowInstance, setNodes]
   );
 
+  const areAllNodesConnected = () => {
+    if (nodes.length === 1) return true; // A single node is considered connected
+
+    const connectedNodes = new Set();
+    edges.forEach((edge) => {
+      connectedNodes.add(edge.source);
+      connectedNodes.add(edge.target);
+    });
+
+    return nodes.every((node) => connectedNodes.has(node.id));
+  };
+
+  const handleSave = () => {
+    if (!areAllNodesConnected()) {
+      alert('Connect the nodes before saving');
+      return;
+    }
+
+    localStorage.setItem('nodes', JSON.stringify(nodes));
+    localStorage.setItem('edges', JSON.stringify(edges));
+    alert('Flow saved successfully!');
+  };
+
   return (
-    <div className="flex">
-      <ReactFlowProvider>
-        <div className="w-[75%] h-[90vh] bg-slate-100" ref={reactFlowWrapper}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            onNodeClick={onNodeClick}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onInit={setReactFlowInstance}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-          >
-            <Background />
-            <Controls />
-          </ReactFlow>
-        </div>
-        <Toolbar
-          editValue={editValue}
-          handleChange={handleChange}
-          handleEdit={handleEdit}
-          selectedNodeId={selectedNodeId}
-          setShowUpdateSection={setShowUpdateSection}
-        />
-      </ReactFlowProvider>
+    <div>
+      <Header handleSave={handleSave} />
+      <div className="flex">
+        <ReactFlowProvider>
+          <div className="w-[75%] h-[90vh] bg-slate-100" ref={reactFlowWrapper}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              onNodeClick={onNodeClick}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onInit={setReactFlowInstance}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+            >
+              <Background />
+              <Controls />
+            </ReactFlow>
+          </div>
+          <Toolbar
+            selectedNodeId={selectedNodeId}
+            editValue={editValue}
+            handleChange={handleChange}
+            handleEdit={handleEdit}
+          />
+        </ReactFlowProvider>
+      </div>
     </div>
   );
 };
